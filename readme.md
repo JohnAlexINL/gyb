@@ -1,35 +1,40 @@
-# gyb
+# GYB Linker
 
 `gyb` is the linker for the `m` compiler frontend
 and the `garter` compiler toolchain.
-
-## Object Format
-
-This linker will implement its own object format
-
-## Outputs
-
-This linker can either:
-- Take multiple `.gyo` files and merge them into one `.gyb`
-- Take a `.gyb` file and translate it into an ELF `.o`
-- Take a `.gyb` file and translate it into a static executable ELF
+It implements a lightweight, custom object format designed to be super easy to re-implement while also trivial to translate into real object and executable formats.
 
 ## Methodology
 
-To make an ELF `.o` from a `.gyb` bytecode object,
+To make ELF `.o` or executables from a `.gyb` bytecode object,
 we'll take template object and inject our code
 into the appropriate sections of it,
-translate and inject our symbol table into it,
-and then output it back into a file.
+translate and inject our symbol table into it
 
 ## Purpose
 
 The `m` compiler toolchain seeks to separate out
 as many responsibilites from each process as possible.
-Splitting the emitter from the linker allows the linker
-to not worry about *how* the objects are prepared for linking,
-and allows the emitter to only worry about the
-single and very simply object format
+
+The purpose for designing our own object format is simple;
+ELF is complicated and difficult to work with. Documentation for the Executable and Linkable Format is extensive, but really unhelpful, and from the perspective of trying to actually work with it _sucks_.
+
+Using a simplified object format means new backends are easy to write, and frontends are easy to plug in, and that's exactly what this toolchain is all about.
+
+## Linker i/o
+
+This linker takes in
+GYB `*.gyo` and `*.gyb` Object files.
+
+It can:
+- link multiple GYB objects together into one object
+- convert a static `*.gyb` object into an ELF object
+- convert a static `*.gyb` object into a static executable
+
+Planned executable targets:
+- Windows Portable Executable `x86-64`
+- MacOS/RayvnOS MachO `x86-64`/`AArch64`
+- Linux/BSD ELF `x86-64`/`AArch64`/`RISC-V`
 
 # Implementation
 
@@ -40,8 +45,7 @@ single and very simply object format
 - Check to make sure there are no hanging `external` symbols;
     - If we have `external` symbols which haven't been resolved,
     we should give a linker warning to the console and
-    set a flag so that the output object is
-    still marked as needing relocation (i.e., magic `GYO\0`, not `GYB\0`)
+    set a flag so that the output object is marked as being non-static (`GYO\0`)
 - Squash the symbol table back down into a `char *`
 - Output a new bytecode file
 
@@ -106,3 +110,59 @@ offsets or literal values.
 Garter bytecode objects should always be, essentially,
 statically compiled objects, so if we encounter any
 `external` symbols in the object, we should error out.
+
+# GYB Object Format
+
+The header starts with one of two magic values:
+```c
+const char *static_object =      "GYB\0";
+const char *relocatable_object = "GYO\0";
+```
+Then we have the following data:
+```c
+uint32_t entry;
+uint32_t readonly_offset;
+uint32_t readonly_size;
+uint32_t writable_offset;
+uint32_t writable_size;
+uint32_t executable_offset;
+uint32_t executable_size;
+uint32_t symboltable_offset;
+uint32_t symboltable_size;
+```
+These sizes are expressed in bytes,
+and the offsets are bytes from the end of this header.
+
+The readable and writable sections are literal data
+and are unmodified by the linker during relocation.
+The executable section contains platform-independent
+bytecode using symbols in the instructions
+which will be modified during relocation and linking.
+
+The symbol table contains a block of the raw data
+of `symbol_t` entries, which look like
+```c
+char name[symbol_namelen];
+uint32_t offset;
+unsigned char section;
+unsigned char defined;
+```
+
+If `symboltable_size` is not
+an exact multiple of `sizeof(symbol_t)`,
+then we know that the object is erroneous and can error out.
+
+## The Bytecode
+
+The bytecode is influenced heavily by `x86`
+but uses a small subset of registers and
+symbol-references in place of addresses and literal values.
+GYB bytecode includes integer and floating arithmetic instructions,
+instructions for casting and converting between the two types,
+various instructions for moving data around,
+and instructions for branching and interacting with the system,
+including both a platform-agnostic `syscall`,
+and a manual platform-dependent `interrupt`.
+
+For more information on writing garter bytecode,
+see the `garter` specification doc.

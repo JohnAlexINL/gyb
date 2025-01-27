@@ -1,28 +1,82 @@
-void bytecode_symboloffset(symbol_t *symbols, int count, unsigned int ro, unsigned int rw, unsigned int x) {
-    int i; for (i=0;i<count;i++) {
-        unsigned char section = symbols[i].section;
+void bytecode_symboloffset(symboltable_t *table, unsigned int ro, unsigned int rw, unsigned int x) {
+    int i; for (i=0;i<symbol_depth;i++) {
+        unsigned char section = table->entries[i].section;
         switch(section) {
-            case section_readonly: symbols[i].offset += ro;
-            case section_readwrite: symbols[i].offset += rw;
-            case section_executable: symbols[i].offset += x;
-            default: printf("Invalid section code %c for symbol \"%s\"\n", section, symbols[i].name); exit(2);
+            case section_readonly: table->entries[i].offset += ro; break;
+            case section_readwrite: table->entries[i].offset += rw; break;
+            case section_executable: table->entries[i].offset += x; break;
+            default: break; // external, constant, or undefined; do nothing
         }
     }
 }
 
-void bytecode_make(char *output, int srcn, char **srcs){
-    symboltable_t symtable;
-    char *buffer;
-    int i; for(i=0;i<srcn;i++) {
-        // Load the object file into memory
-        if ( file_exists(srcs[i]) == false ) {
-            printf("file does not exist \"%s\"\n", srcs[i]); exit(2); }
-        int buffersize = file_size(srcs[i]);
-        buffer = malloc(sizeof(char)*buffersize);
-        file_read(srcs[i], buffer, buffersize);
-        // Check that the object is a relocatable type
-        unsigned char type = bytecode_magic(buffer);
-        if (type != 'O') {
-            printf("file \"%s\" is not reloctable garter bytecode\n", srcs[i]); exit(2); }
+void bytecode_buffsizeup(gybfile_t parent, unsigned char type, int size, char *buffer) {
+    int dif; int newsize; int oldsize;
+    switch(type) {
+        case symboltype_readable: oldsize = parent.header.readonly[1]; break;
+        case symboltype_writeable: oldsize = parent.header.writeable[1]; break;
+        case symboltype_executable: oldsize = parent.header.executable[1]; break;
     }
+    if ( size <= oldsize ) {
+        // Round up to the nearest kilobyte
+        dif = size - oldsize;
+        newsize = oldsize + (dif / 1024 + 1) * 1024;
+    }
+    switch(type) {
+        case symboltype_readable:
+            parent.header.readonly[1] = size;
+            parent.readonly = realloc(buffer, newsize);
+            break;
+        case symboltype_writeable:
+            parent.header.writeable[1] = size;
+            parent.writeable = realloc(buffer, newsize);
+            break;
+        case symboltype_executable:
+            parent.header.executable[1] = size;
+            parent.executable = realloc(buffer, newsize);
+            break;
+        default:
+            printf("invalid section type %c\n", type); exit(2);
+    }
+}
+
+bool bytecode_make(char *output, int srcn, char **srcs){
+    gybfile_t make = bytecode_new();
+    // these get updated as we read in each symbol table
+    int roffset = 0; int woffset = 0; int xoffset = 0;
+    // Load in all of the bytecode files
+    int i; for(i=0;i<srcn;i++) {
+        // Load in the bytecode
+        gybfile_t local = bytecode_load(srcs[i]);
+        // Offset its symbol table
+        bytecode_symboloffset(&local.symtable, roffset, woffset, xoffset);
+        // Then actually import its symbol table
+        symtable_import(&make.symtable, &local.symtable);
+        // Make sure the sections have enough space for the new sections
+        bytecode_buffsizeup(make, section_readonly, roffset+local.header.readonly[1], make.readonly);
+        bytecode_buffsizeup(make, section_readwrite, woffset+local.header.writeable[1], make.writeable);
+        bytecode_buffsizeup(make, section_executable, xoffset+local.header.executable[1], make.executable);
+        // Then clone in the section data
+        memcpy(make.readonly+roffset, local.readonly, local.header.readonly[1]);
+        memcpy(make.writeable+woffset, local.writeable, local.header.writeable[1]);
+        memcpy(make.executable+xoffset, local.executable, local.header.executable[1]);
+        // Update the offsets
+        roffset += local.header.readonly[1];
+        woffset += local.header.writeable[1];
+        xoffset += local.header.executable[1];
+    }
+    // Flatten the symbol table
+    int symbolcount = symboltable_count(&make.symtable);
+    symbol_t *local_symbols = symtable_flatten(&make.symtable);
+    // Update the header to include our offsets and symboltable size
+    make.header.symbols[1] = symbolcount * sizeof(symbol_t);
+    make.header.readonly[1] = roffset;
+    make.header.writeable[1] = woffset;
+    make.header.executable[1] = xoffset;
+    // Set the typemagic
+    if ( symbol_static(local_symbols, symbolcount) == true )
+    { make.header.bytemagic[2] = 'B'; } else
+    { make.header.bytemagic[2] = 'O'; }
+    // Once the object is ready, have it commit to file
+    return bytecode_save(output, make);
 }

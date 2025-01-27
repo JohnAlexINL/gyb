@@ -1,10 +1,3 @@
-#define section_readonly 'R'
-#define section_readwrite 'W'
-#define section_executable 'E'
-
-#define symbol_depth 1024
-#define symbol_namelen 64 - (sizeof(unsigned char)*2) - sizeof(unsigned int) - 4
-
 typedef struct {
     unsigned char bytemagic[4]; // GYB0 or GYO0
     uint32_t entry;
@@ -16,7 +9,7 @@ typedef struct {
 
 typedef struct {
     char name[symbol_namelen];
-    unsigned int offset;
+    uint32_t offset;
     unsigned char section;
     unsigned char defined;
 } symbol_t;
@@ -24,3 +17,11 @@ typedef struct {
 typedef struct {
     symbol_t entries[symbol_depth];
 } symboltable_t;
+
+typedef struct {
+    header_t header;
+    char *readonly; int rbuffersize;
+    char *writeable; int wbuffersize;
+    char *executable; int ebuffersize;
+    symboltable_t symtable;
+} gybfile_t;

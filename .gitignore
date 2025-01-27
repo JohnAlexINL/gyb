@@ -1,2 +1,4 @@
 .ignore
 gyb
+*.gyo
+*.gyb

@@ -9,10 +9,11 @@ int file_read(char *filename, char *buffer, int max) {
    } fclose(fp); return cursor;
 }
 
+// we need file_write to still write out NULL characters for this application
 int file_write (char *filename, char *buffer, int max) {
     FILE *fp = fopen(filename, "w+");
     if ( fp == NULL ) { return false; }
-    int cursor; for (cursor = 0; cursor < max && buffer[cursor] != '\0'; cursor++) {
+    int cursor; for (cursor = 0; cursor < max /*&& buffer[cursor] != '\0'*/; cursor++) {
         if (fputc(buffer[cursor], fp) == EOF) { fclose(fp); return false; }
     } fclose(fp); return cursor;
 }

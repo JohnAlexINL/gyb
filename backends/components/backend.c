@@ -5,7 +5,7 @@ unsigned char getPlatform(char *name) {
 }
 
 void backend(unsigned char platform, char *output, char *source) {
-    gybfile_t gybfile = bytecode_load(source);
+    gybfile_t gybfile = gyb_bytecode_load(source);
     switch(platform) {
         case platform_elf_x8664:    backend_elf_x8664(output, &gybfile); break;
         case platform_pe_x8664:     backend_pe_x8664(output, &gybfile); break;

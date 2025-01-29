@@ -5,23 +5,23 @@ typedef struct {
     uint32_t writeable[2];  // offset, size
     uint32_t executable[2]; // offset, size
     uint32_t symbols[2];    // offset, size
-} header_t;
+} gyb_header_t;
 
 typedef struct {
-    char name[symbol_namelen];
+    char name[gyb_symbol_namelen];
     uint32_t offset;
     unsigned char section;
     unsigned char defined;
-} symbol_t;
+} gyb_symbol_t;
 
 typedef struct {
-    symbol_t entries[symbol_depth];
-} symboltable_t;
+    gyb_symbol_t entries[gyb_symbol_depth];
+} gyb_symboltable_t;
 
 typedef struct {
-    header_t header;
+    gyb_header_t header;
     char *readonly; int rbuffersize;
     char *writeable; int wbuffersize;
     char *executable; int ebuffersize;
-    symboltable_t symtable;
+    gyb_symboltable_t symtable;
 } gybfile_t;

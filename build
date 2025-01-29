@@ -1,6 +1,6 @@
 # bytes license LICENSE license.h
-cat lib/components/constants.h lib/components/gyb.h lib/components/bytecode.h lib/components/sym.h lib/components/file.h lib/components/strings.h > lib/libgyb.h
-cat lib/components/bytecode.c lib/components/file.c lib/components/sym.c > lib/libgyb.c
+cat lib/components/requires.h lib/components/constants.h lib/components/gyb.h lib/components/op.h lib/components/bytecode.h lib/components/sym.h lib/components/file.h lib/components/strings.h lib/components/debug.h > lib/libgyb.h
+cat lib/components/op.c lib/components/bytecode.c lib/components/file.c lib/components/sym.c lib/components/debug.c > lib/libgyb.c
 cat backends/components/backend.h > backends/backend.h
 cat backends/components/elf.c backends/components/macho.c backends/components/pe.c backends/components/backend.c > backends/backend.c
 gcc -o gyb gyb.c -static -Oz

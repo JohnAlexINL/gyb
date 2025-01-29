@@ -1,8 +1,8 @@
 uint32_t symbolhash(char *name);
-symboltable_t *symtable_load(symboltable_t *table, char *source, int size);
-symbol_t *symtable_flatten(symboltable_t *table);
-uint32_t symboltable_count(symboltable_t *table);
-bool symbol_new(symboltable_t *table, char *name, unsigned char section, uint32_t offset);
-bool symbol_static(symbol_t *symbols, int count);
-void symtable_import(symboltable_t *parent, symboltable_t *source);
-void symtable_print(symboltable_t *table);
+gyb_symboltable_t *gyb_symtable_load(gyb_symboltable_t *table, char *source, int size);
+gyb_symbol_t *gyb_symtable_flatten(gyb_symboltable_t *table);
+uint32_t symboltable_count(gyb_symboltable_t *table);
+bool gyb_symbol_new(gyb_symboltable_t *table, char *name, unsigned char section, uint32_t offset);
+bool gyb_symbol_static(gyb_symbol_t *symbols, int count);
+void gyb_symtable_import(gyb_symboltable_t *parent, gyb_symboltable_t *source);
+void gyb_symtable_print(gyb_symboltable_t *table);
